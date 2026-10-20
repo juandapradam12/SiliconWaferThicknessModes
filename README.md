@@ -277,7 +277,8 @@ regenerates every figure under `figures/` and writes
 | MP signal components ($\lambda_k > \lambda_{+}$) | PC1 (PC2 near the edge) |
 | Mahalanobis outliers | $14$ of $184$ sections |
 | Closest gauges (loading plane) | G1–G5 |
-| Dropping G5 | PC1 / RMSE essentially unchanged |
+| Dropping G5 | PC1 / RMSE essentially unchanged (redundant) |
+| Dropping G6 | PC1 rises; RMSE on remaining gauges falls (contrast mode removed) |
 | RMSE with $r = 2$ components | $0.25$ (standardized units) |
 | Covariance PCA vs SVD | eigenvalues agree |
 
