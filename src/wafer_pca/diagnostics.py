@@ -131,3 +131,141 @@ def spc_limits(scores_1d: np.ndarray, k: float = 3.0) -> tuple[float, float, flo
     center = float(np.mean(scores_1d))
     sigma = float(np.std(scores_1d, ddof=1))
     return center - k * sigma, center, center + k * sigma
+
+
+def mean_abs_residual_by_gauge(
+    X: np.ndarray, model: PrincipalComponentAnalysis, n_components: int = 2
+) -> np.ndarray:
+    """Mean absolute residual per gauge after a truncated PCA reconstruction."""
+    X_hat = reconstruct_with_r(X, model, n_components)
+    return np.mean(np.abs(X - X_hat), axis=0)
+
+
+def cross_validated_rmse(
+    X: np.ndarray,
+    max_components: int | None = None,
+    n_folds: int = 5,
+    random_state: int = 0,
+) -> np.ndarray:
+    """K-fold out-of-sample RMSE versus number of retained components.
+
+    For each fold, PCA is fit on the training sections and the held-out
+    sections are reconstructed in the training loading basis.
+    """
+    X = np.asarray(X, dtype=float)
+    n, p = X.shape
+    max_components = p if max_components is None else max_components
+    rng = np.random.default_rng(random_state)
+    order = rng.permutation(n)
+    folds = np.array_split(order, n_folds)
+    errors = np.zeros(max_components, dtype=float)
+
+    for r in range(1, max_components + 1):
+        sq = []
+        for fold in folds:
+            test = np.zeros(n, dtype=bool)
+            test[fold] = True
+            train_X = X[~test]
+            test_X = X[test]
+            model = PrincipalComponentAnalysis.fit(train_X, n_components=r)
+            V = model.eigenvectors
+            recon = (test_X @ V) @ V.T
+            sq.append(np.mean((test_X - recon) ** 2))
+        errors[r - 1] = float(np.sqrt(np.mean(sq)))
+    return errors
+
+
+def physical_plane_design_matrix(gauge_names: list[str]) -> np.ndarray:
+    """Design matrix ``[1, x, y]`` on the schematic gauge layout."""
+    from wafer_pca.data import SCHEMATIC_GAUGE_XY
+
+    rows = []
+    for name in gauge_names:
+        x, y = SCHEMATIC_GAUGE_XY[name]
+        rows.append([1.0, x, y])
+    return np.asarray(rows, dtype=float)
+
+
+def fit_physical_plane(
+    X: np.ndarray, gauge_names: list[str]
+) -> tuple[np.ndarray, np.ndarray, float]:
+    """Per-section global offset + linear tilt on the schematic wafer.
+
+    For each section ``i`` solve
+    ``x_i ≈ a_i · 1 + b_i · x + c_i · y`` in the least-squares sense.
+    Returns ``(coefficients, reconstruction, rmse)``.
+    """
+    X = np.asarray(X, dtype=float)
+    A = physical_plane_design_matrix(gauge_names)  # (p, 3)
+    # β = (AᵀA)⁻¹ Aᵀ xᵀ  →  coefficients shape (n, 3)
+    coeffs, _, _, _ = np.linalg.lstsq(A, X.T, rcond=None)
+    coeffs = coeffs.T
+    X_hat = coeffs @ A.T
+    rmse = float(np.sqrt(np.mean((X - X_hat) ** 2)))
+    return coeffs, X_hat, rmse
+
+
+def permutation_null_variance_ratios(
+    X: np.ndarray,
+    n_permutations: int = 500,
+    random_state: int = 0,
+) -> np.ndarray:
+    """Null distribution of explained-variance ratios under column shuffles.
+
+    Independently permuting each gauge column destroys cross-gauge
+    correlation while preserving marginal variances. Useful for testing
+    whether ``ρ_1`` exceeds chance; ``ρ_2`` is *deflated* when ``ρ_1`` is
+    large, so a spatial test is preferred for PC2.
+    """
+    X = np.asarray(X, dtype=float)
+    n, p = X.shape
+    rng = np.random.default_rng(random_state)
+    ratios = np.empty((n_permutations, p), dtype=float)
+    for b in range(n_permutations):
+        shuffled = np.column_stack(
+            [rng.permutation(X[:, j]) for j in range(p)]
+        )
+        ratios[b] = PrincipalComponentAnalysis.fit(shuffled).explained_variance_ratio
+    return ratios
+
+
+def permutation_pvalue(
+    observed_ratio: float, null_ratios: np.ndarray, component: int = 0
+) -> float:
+    """One-sided p-value: fraction of null ρ_k ≥ observed ρ_k."""
+    null_k = null_ratios[:, component]
+    return float(np.mean(null_k >= observed_ratio))
+
+
+def loading_spatial_r2(loadings_1d: np.ndarray, gauge_names: list[str]) -> float:
+    """R² of regressing a loading vector on schematic gauge coordinates (x, y)."""
+    A = physical_plane_design_matrix(gauge_names)[:, 1:]  # drop intercept
+    y = np.asarray(loadings_1d, dtype=float)
+    y = y - y.mean()
+    beta, _, _, _ = np.linalg.lstsq(A, y, rcond=None)
+    y_hat = A @ beta
+    ss_tot = float(np.sum(y**2))
+    if ss_tot <= 0:
+        return 0.0
+    return float(1.0 - np.sum((y - y_hat) ** 2) / ss_tot)
+
+
+def permutation_spatial_r2_null(
+    loadings_1d: np.ndarray,
+    gauge_names: list[str],
+    n_permutations: int = 500,
+    random_state: int = 0,
+) -> tuple[float, np.ndarray, float]:
+    """Permute gauge labels to test spatial organization of a loading vector.
+
+    Returns ``(observed_R2, null_R2_samples, p_value)``.
+    """
+    observed = loading_spatial_r2(loadings_1d, gauge_names)
+    rng = np.random.default_rng(random_state)
+    names = list(gauge_names)
+    null = np.empty(n_permutations, dtype=float)
+    for b in range(n_permutations):
+        shuffled = list(rng.permutation(names))
+        null[b] = loading_spatial_r2(loadings_1d, shuffled)
+    p_value = float(np.mean(null >= observed))
+    return observed, null, p_value

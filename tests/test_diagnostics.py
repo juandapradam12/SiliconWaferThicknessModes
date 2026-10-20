@@ -14,8 +14,14 @@ from wafer_pca.data import load_thickness, standardize
 from wafer_pca.diagnostics import (
     bootstrap_loadings,
     covariance_vs_correlation_spectra,
+    cross_validated_rmse,
+    fit_physical_plane,
     marchenko_pastur_edges,
+    mean_abs_residual_by_gauge,
     n_signal_components,
+    permutation_null_variance_ratios,
+    permutation_pvalue,
+    permutation_spatial_r2_null,
     reconstruct_with_r,
     sensor_pruning_study,
     spc_limits,
@@ -77,3 +83,48 @@ def test_reconstruction_rank():
     assert X_hat.shape == X.shape
     # Rank of reconstruction is at most 2.
     assert np.linalg.matrix_rank(X_hat, tol=1e-8) <= 2
+
+
+def test_mean_abs_residual_nonnegative():
+    X, _, _ = standardize(load_thickness().to_numpy())
+    model = PrincipalComponentAnalysis.fit(X)
+    resid = mean_abs_residual_by_gauge(X, model, 2)
+    assert resid.shape == (9,)
+    assert np.all(resid >= 0)
+
+
+def test_cv_rmse_decreases_initially():
+    X, _, _ = standardize(load_thickness().to_numpy())
+    cv = cross_validated_rmse(X, max_components=4, n_folds=4, random_state=0)
+    assert cv.shape == (4,)
+    assert cv[1] < cv[0]
+
+
+def test_physical_plane_competitive_with_pca2():
+    frame = load_thickness()
+    X, _, _ = standardize(frame.to_numpy())
+    model = PrincipalComponentAnalysis.fit(X)
+    _, _, rmse_phys = fit_physical_plane(X, list(frame.columns))
+    rmse_pca2 = float(np.sqrt(np.mean((X - reconstruct_with_r(X, model, 2)) ** 2)))
+    # Plane model should be in the same ballpark as 2-PC PCA.
+    assert rmse_phys < 2.0 * rmse_pca2
+
+
+def test_permutation_pc1_significant():
+    X, _, _ = standardize(load_thickness().to_numpy())
+    model = PrincipalComponentAnalysis.fit(X)
+    null = permutation_null_variance_ratios(X, n_permutations=80, random_state=0)
+    p = permutation_pvalue(float(model.explained_variance_ratio[0]), null, component=0)
+    assert p < 0.05
+
+
+def test_pc2_spatial_r2_moderate():
+    frame = load_thickness()
+    X, _, _ = standardize(frame.to_numpy())
+    model = PrincipalComponentAnalysis.fit(X)
+    r2, null, p = permutation_spatial_r2_null(
+        model.loadings()[:, 1], list(frame.columns), n_permutations=120, random_state=0
+    )
+    assert r2 > 0.2
+    assert null.shape == (120,)
+    assert 0.0 <= p <= 1.0
