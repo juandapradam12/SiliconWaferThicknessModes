@@ -21,17 +21,14 @@ Each gauge is mapped to a common scale by the sample $z$-score
 $$X_{ij} = \frac{(X_{\mathrm{raw}})_{ij} - \mu_j}{\sigma_j}, \qquad \mu_j = \frac{1}{n}\sum_{i=1}^{n}(X_{\mathrm{raw}})_{ij}, \qquad \sigma_j = \sqrt{\frac{1}{n-1}\sum_{i=1}^{n}\bigl((X_{\mathrm{raw}})_{ij}-\mu_j\bigr)^{2}}.$$
 
 Without this step, gauges with larger metrology variance would dominate the
-covariance spectrum irrespective of their physical coupling.
+covariance spectrum irrespective of their physical coupling. A parallel
+**median / MAD** scaling and a Mahalanobis gate on the $z$-scored rows are
+used to test sensitivity to heavy-tailed thickness spikes.
 
-A parallel **median / MAD** scaling,
-
-$$X_{ij}^{\mathrm{rob}} = \frac{(X_{\mathrm{raw}})_{ij} - m_j}{1.4826\,\mathrm{MAD}_j},$$
-
-is used to test sensitivity to heavy-tailed thickness spikes. Outlying
-sections are additionally flagged by a Mahalanobis gate on the
-$z$-scored rows: keep row $i$ when
-$d_i^{2} = (\mathbf{x}_i-\bar{\mathbf{x}})^{\mathsf{T}} C^{-1}(\mathbf{x}_i-\bar{\mathbf{x}})$
-does not exceed the $97.5\%$ critical value of a $\chi^{2}_{9}$ law.
+PCA on the *centered but unscaled* matrix (raw covariance) is retained as a
+contrast: it answers a different question (which gauges move most in absolute
+units) and is not interchangeable with correlation PCA for mode
+interpretation.
 
 ## Sample covariance and eigenmodes
 
@@ -43,10 +40,9 @@ Principal component analysis solves the symmetric eigenproblem
 
 $$C\, v_k = \lambda_k\, v_k, \qquad \lambda_1 \ge \lambda_2 \ge \cdots \ge \lambda_9 \ge 0,$$
 
-where the orthonormal eigenvectors $v_k$ are the **loadings** (sensor
-weights of each mode) and the eigenvalues $\lambda_k$ are the variances
-along those modes. The fraction of total variance explained by component
-$k$ is
+where the orthonormal eigenvectors $v_k$ are the **loadings** and the
+eigenvalues $\lambda_k$ are the variances along those modes. The fraction of
+total variance explained by component $k$ is
 
 $$\rho_k = \frac{\lambda_k}{\sum_{m=1}^{9}\lambda_m}.$$
 
@@ -54,37 +50,50 @@ $$\rho_k = \frac{\lambda_k}{\sum_{m=1}^{9}\lambda_m}.$$
 
 Write $\tilde{X} = X / \sqrt{n-1}$ and compute the thin SVD
 $\tilde{X} = U\Sigma V^{\mathsf{T}}$. Then the columns of $V$ coincide with
-the eigenvectors of $C$, and $\lambda_k = \Sigma_{kk}^{2}$. The
-implementation exposes both routes and asserts numerical agreement.
+the eigenvectors of $C$, and $\lambda_k = \Sigma_{kk}^{2}$.
 
 ### Bootstrap uncertainty
 
-Resampling the $n$ rows with replacement and recomputing $\{\rho_k\}$ yields
-percentile confidence intervals for the spectrum, used in the scree figure.
+Resampling the $n$ rows with replacement and recomputing $\{\rho_k\}$ and the
+leading loadings (after sign alignment to the full-sample fit) yields
+percentile confidence intervals for both the spectrum and the mode geometry.
 
-## Scores and reconstruction
+### Marchenko–Pastur noise edge
 
-Projecting the standardized sections onto the leading $r$ eigenvectors
-gives the score matrix
+For aspect ratio $\gamma = p/n$ and population covariance $I_p$, sample
+eigenvalues of pure noise concentrate in
 
-$$T = X V_r, \qquad V_r = [v_1\,\cdots\,v_r],$$
+$$\bigl[(1-\sqrt{\gamma})^{2},\, (1+\sqrt{\gamma})^{2}\bigr].$$
 
-and the truncated reconstruction
+Eigenvalues above the upper edge $\lambda_{+}$ are treated as signal
+candidates. With $n = 184$ and $p = 9$, $\lambda_{+} \approx (1+\sqrt{\gamma})^{2}$.
 
-$$\hat{X} = T V_r^{\mathsf{T}} = X V_r V_r^{\mathsf{T}}.$$
+## Scores, SPC, and reconstruction
 
-The root-mean-square error $\|X - \hat{X}\|_{\mathrm{F}} / \sqrt{np}$
-quantifies how many eigenmodes are needed to recover the thickness field
-to a chosen tolerance.
+Projecting onto the leading $r$ eigenvectors gives
+
+$$T = X V_r, \qquad \hat{X} = T V_r^{\mathsf{T}} = X V_r V_r^{\mathsf{T}}.$$
+
+The first score column $T_{\cdot 1}$ is monitored as a Shewhart series with
+center line $\bar{T}_{\cdot 1}$ and control limits
+$\bar{T}_{\cdot 1} \pm 3\, s_{T_{\cdot 1}}$, providing a single global
+thickness statistic for process control.
+
+The RMSE $\|X - \hat{X}\|_{\mathrm{F}} / \sqrt{np}$ quantifies how many
+eigenmodes are needed to recover the thickness field to a chosen tolerance.
+
+## Sensor pruning
+
+Gauges that land close in the PC1–PC2 loading plane are candidates for
+removal. Re-fitting PCA after dropping $G_5$ (redundant with $G_1$), $G_6$
+(PC2 driver), or both, compares $\rho_1$ and the two-component RMSE and
+turns the loading geometry into a metrology-design statement.
 
 ## Interpretation on the wafer
 
 - **PC1** aggregates gauges with like-signed loadings and captures a
   nearly global thickness offset across the wafer.
-- **PC2** (and higher modes) introduce sign changes among gauges and
-  therefore encode spatial gradients or bow/warp patterns.
-- Gauge pairs that land close to each other in the PC1–PC2 loading plane
-  contribute similarly to the retained modes and are candidates for
-  physically redundant sensors.
+- **PC2** introduces sign changes among gauges and encodes spatial
+  gradients or bow/warp patterns.
 - Because survey coordinates are unavailable, wafer-map figures use a
   schematic $3\times 3$ layout; mode identity itself is coordinate-free.
