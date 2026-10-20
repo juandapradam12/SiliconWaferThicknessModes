@@ -65,7 +65,7 @@ to fluctuate most in absolute units:
 ![Covariance vs correlation PCA spectra](figures/03_cov_vs_corr_spectra.png)
 
 *Figure 3. Explained-variance ratios for centered-only (covariance) PCA versus
-$z$-scored (correlation) PCA. Standardization equalizes gauge scales so that
+z-scored (correlation) PCA. Standardization equalizes gauge scales so that
 the spectrum reflects physical coupling rather than metrology dynamic range.*
 
 ### Covariance eigenproblem
@@ -147,7 +147,7 @@ metrologically redundant for those modes.*
 
 *Figure 8. Loading weights by gauge. PC1 loadings are uniformly positive and
 nearly equal ($\approx 0.34$), identifying a **global thickness offset**.
-PC2 flips sign: gauges $G_1$–$G_5$ enter with negative weight while $G_6$
+PC2 flips sign: gauges $G_1,\ldots,G_5$ enter with negative weight while $G_6$
 dominates positively, identifying a **spatial contrast / gradient mode**.*
 
 Bootstrap resampling of wafer sections supplies 95% intervals on each loading
@@ -162,12 +162,12 @@ stable.*
 ![PC2 loading bootstrap intervals](figures/10_pc2_loading_intervals.png)
 
 *Figure 10. PC2 loadings with 95% bootstrap intervals. The large positive
-weight on $G_6$ is resolved away from zero; the opposing $G_1$–$G_5$ block
+weight on $G_6$ is resolved away from zero; the opposing $G_1,\ldots,G_5$ block
 is likewise stable, confirming a genuine spatial contrast rather than sampling
 noise.*
 
 Exact gauge coordinates were not shipped with the table, so the loadings are
-mapped onto a conventional schematic $3\times 3$ grid (row-major $G_1$…$G_9$)
+mapped onto a conventional schematic $3\times 3$ grid (row-major $G_1,\ldots,G_9$)
 for interpretation only:
 
 ![Schematic wafer map of PC1 loadings](figures/11_wafer_pc1_map.png)
@@ -178,7 +178,7 @@ comparable magnitude at every gauge recover the global offset mode.*
 ![Schematic wafer map of PC2 loadings](figures/12_wafer_pc2_map.png)
 
 *Figure 12. Same layout colored by PC2. The east-side gauge $G_6$ dominates
-the contrast, while $G_1$–$G_5$ oppose it — a spatial gradient / bow pattern
+the contrast, while $G_1,\ldots,G_5$ oppose it — a spatial gradient / bow pattern
 rather than another global offset.*
 
 The closest pair in the PC1–PC2 loading plane is **G1–G5**. Dropping the
@@ -197,7 +197,7 @@ the global offset.*
 
 ## Outliers and robustness
 
-Several sections in Figure 1 reach deviations of order $7$–$8$ while typical
+Several sections in Figure 1 reach deviations of order 7–8 while typical
 values sit near $0.2$. A Mahalanobis gate on the standardized rows flags these
 heavy tails; median/MAD scaling and a filtered re-fit test whether the
 spectrum depends on them.
@@ -209,7 +209,7 @@ global thickness offsets rather than a separate geometric family.*
 
 ![Spectrum comparison under robust preprocessing](figures/15_outlier_spectrum_comparison.png)
 
-*Figure 15. Explained-variance ratios under classical $z$-scores, median/MAD
+*Figure 15. Explained-variance ratios under classical z-scores, median/MAD
 scaling, and Mahalanobis filtering. PC1 remains overwhelmingly dominant in
 all three treatments, so the one-to-two-mode picture is not an artifact of
 the spikes.*
@@ -218,7 +218,7 @@ the spikes.*
 
 Truncating to $r = 2$ components recovers the standardized thickness field to
 an RMSE of about $0.25$. Side-by-side panels for a typical section, a large
-PC1 excursion, and a large $|$PC2$|$ section make that error spatially
+PC1 excursion, and a large $|\mathrm{PC2}|$ section make that error spatially
 concrete:
 
 ![Reconstruction panels](figures/16_reconstruction_panels.png)
@@ -280,7 +280,7 @@ offset is not a chance fluctuation of nine independent sensors.*
 *Figure 22. Null histogram of the spatial $R^{2}$ of PC2 loadings against
 schematic $(x,y)$ under random gauge-label permutations. The observed
 $R^{2} \approx 0.42$ is moderate; with only nine schematic sites the
-permutation $p$-value is not decisive on its own. The stronger geometric
+permutation p-value is not decisive on its own. The stronger geometric
 evidence is Figure 20: a literal offset+tilt model matches two-component
 PCA almost exactly.*
 
@@ -333,7 +333,7 @@ regenerates every figure under `figures/` and writes
 | RMSE with $r = 2$ components | $0.25$ (standardized units) |
 | 5-fold CV RMSE ($r = 2$) | matches in-sample within noise |
 | Physical plane RMSE | comparable to 2-PC PCA |
-| PC1 permutation $p$-value | $\ll 0.05$ (common mode) |
+| PC1 permutation p-value | $\ll 0.05$ (common mode) |
 | PC2 spatial $R^{2}$ (schematic) | $\approx 0.42$ (moderate; tilt reading rests mainly on Fig. 20) |
 | Covariance PCA vs SVD | eigenvalues agree |
 

@@ -19,8 +19,8 @@ relative to that target.
 ## Spatial layout
 
 Exact $(x,y)$ survey coordinates were not recorded with this table. The
-analysis therefore adopts a conventional **schematic $3\times 3$ gauge
-grid** (row-major `G1`…`G9`) solely to map principal loadings onto a wafer
+analysis therefore adopts a conventional schematic **$3\times 3$** gauge
+grid (row-major `G1`…`G9`) solely to map principal loadings onto a wafer
 disk. Conclusions about *which gauges behave alike* follow from the loadings
 themselves and do not depend on that schematic; only the wafer-map figures do.
 
