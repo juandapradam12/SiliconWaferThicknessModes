@@ -119,7 +119,10 @@ def plot_correlation_heatmap(corr: pd.DataFrame, path: Path) -> Path:
 
 
 def plot_scree(
-    model: PrincipalComponentAnalysis, path: Path, full_eigenvalues: np.ndarray
+    model: PrincipalComponentAnalysis,
+    path: Path,
+    full_eigenvalues: np.ndarray,
+    bootstrap_bands: tuple[np.ndarray, np.ndarray, np.ndarray] | None = None,
 ) -> Path:
     """Scree plot of explained variance for all principal components."""
     ratios = full_eigenvalues / full_eigenvalues.sum()
@@ -129,6 +132,16 @@ def plot_scree(
     fig, ax = plt.subplots(figsize=(7.5, 4.2))
     fig.patch.set_facecolor(PALETTE["bg"])
     ax.bar(pcs, ratios, color=PALETTE["steel"], width=0.65, label="Per-component")
+    if bootstrap_bands is not None:
+        lower, _, upper = bootstrap_bands
+        ax.vlines(
+            pcs,
+            lower,
+            upper,
+            color=PALETTE["ink"],
+            lw=1.4,
+            label="95% bootstrap CI",
+        )
     ax.plot(
         pcs,
         cumulative,
@@ -250,5 +263,134 @@ def plot_reconstruction_curve(
     ax.set_ylabel("Reconstruction RMSE (standardized units)")
     ax.set_title("Thickness-field reconstruction error versus model order")
     ax.set_xticks(ks)
+    _style_axes(ax)
+    return _save(fig, path)
+
+
+def plot_wafer_mode_map(loadings: np.ndarray, component: int, path: Path) -> Path:
+    """Schematic 3×3 wafer disk colored by a chosen loading vector."""
+    from wafer_pca.data import SCHEMATIC_GAUGE_XY
+
+    labels = [f"G{i}" for i in range(1, loadings.shape[0] + 1)]
+    weights = loadings[:, component]
+    vmax = float(np.max(np.abs(weights))) or 1.0
+
+    fig, ax = plt.subplots(figsize=(5.8, 5.8))
+    fig.patch.set_facecolor(PALETTE["bg"])
+    wafer = plt.Circle((0, 0), 1.0, fill=False, color=PALETTE["slate"], lw=1.6)
+    ax.add_patch(wafer)
+    ax.set_aspect("equal")
+    ax.set_xlim(-1.25, 1.25)
+    ax.set_ylim(-1.25, 1.25)
+
+    for label, w in zip(labels, weights):
+        x, y = SCHEMATIC_GAUGE_XY[label]
+        # Map loading ∈ [-vmax, vmax] onto the steel→amber correlation cmap.
+        t = 0.5 * (w / vmax + 1.0)
+        color = SENSOR_CMAP(t)
+        ax.scatter(
+            x,
+            y,
+            s=520,
+            c=[color],
+            edgecolors=PALETTE["ink"],
+            linewidths=0.8,
+            zorder=3,
+        )
+        ax.text(
+            x,
+            y,
+            f"{label}\n{w:+.2f}",
+            ha="center",
+            va="center",
+            fontsize=8,
+            color=PALETTE["ink"],
+            zorder=4,
+        )
+
+    ax.set_xticks([])
+    ax.set_yticks([])
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+    ax.set_title(f"Schematic wafer map of PC{component + 1} loadings")
+    ax.set_facecolor(PALETTE["bg"])
+    return _save(fig, path)
+
+
+def plot_outlier_comparison(
+    ratios_classical: np.ndarray,
+    ratios_robust: np.ndarray,
+    ratios_filtered: np.ndarray,
+    path: Path,
+) -> Path:
+    """Compare explained-variance spectra under classical vs robust pipelines."""
+    pcs = np.arange(1, len(ratios_classical) + 1)
+    width = 0.25
+
+    fig, ax = plt.subplots(figsize=(8.2, 4.2))
+    fig.patch.set_facecolor(PALETTE["bg"])
+    ax.bar(
+        pcs - width,
+        ratios_classical,
+        width,
+        color=PALETTE["steel"],
+        label="Classical z-score",
+    )
+    ax.bar(
+        pcs,
+        ratios_robust,
+        width,
+        color=PALETTE["amber"],
+        label="Median / MAD",
+    )
+    ax.bar(
+        pcs + width,
+        ratios_filtered,
+        width,
+        color=PALETTE["cyan"],
+        label="Mahalanobis-filtered",
+    )
+    ax.set_xlabel("Principal component")
+    ax.set_ylabel("Fraction of variance")
+    ax.set_title("Spectrum stability under outlier-resistant preprocessing")
+    ax.set_xticks(pcs)
+    ax.legend(frameon=False, fontsize=8)
+    _style_axes(ax)
+    return _save(fig, path)
+
+
+def plot_score_scatter_outliers(
+    scores: np.ndarray, keep_mask: np.ndarray, path: Path
+) -> Path:
+    """PC scores with Mahalanobis outliers highlighted."""
+    fig, ax = plt.subplots(figsize=(6.5, 5.5))
+    fig.patch.set_facecolor(PALETTE["bg"])
+    ax.scatter(
+        scores[keep_mask, 0],
+        scores[keep_mask, 1],
+        c=PALETTE["steel"],
+        s=28,
+        alpha=0.75,
+        edgecolors="white",
+        linewidths=0.4,
+        label="Retained sections",
+    )
+    ax.scatter(
+        scores[~keep_mask, 0],
+        scores[~keep_mask, 1],
+        c=PALETTE["amber"],
+        s=42,
+        alpha=0.9,
+        edgecolors=PALETTE["ink"],
+        linewidths=0.5,
+        marker="X",
+        label="Mahalanobis outliers",
+    )
+    ax.axhline(0, color=PALETTE["slate"], lw=0.7, ls="--")
+    ax.axvline(0, color=PALETTE["slate"], lw=0.7, ls="--")
+    ax.set_xlabel("PC1 score")
+    ax.set_ylabel("PC2 score")
+    ax.set_title("Thickness outliers in the leading principal plane")
+    ax.legend(frameon=False, fontsize=8)
     _style_axes(ax)
     return _save(fig, path)

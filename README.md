@@ -14,10 +14,7 @@ carries.
 
 A wafer section is described by the nine-dimensional observation
 
-$$
-\mathbf{x}_i = \bigl(G_1^{(i)},\, G_2^{(i)},\, \ldots,\, G_9^{(i)}\bigr)^{\mathsf{T}},
-\qquad i = 1,\ldots,n,
-$$
+$$\mathbf{x}_i = \bigl(G_1^{(i)},\, G_2^{(i)},\, \ldots,\, G_9^{(i)}\bigr)^{\mathsf{T}}, \qquad i = 1,\ldots,n,$$
 
 where each $G_j$ is a thickness deviation from the manufacturing target at
 gauge group $j$, and $n = 184$ sections are available. Manufacturing control
@@ -32,15 +29,17 @@ basis with an orthonormal eigenbasis of the thickness covariance.
 
 ## Data and exploratory structure
 
-The raw table lives in [`data/silicon_wafer_thickness.csv`](data/silicon_wafer_thickness.csv).
-Each column is one gauge; each row is one section index. The nine traces
-already reveal a shared global envelope punctuated by localized excursions:
+The raw table lives in [`data/silicon_wafer_thickness.csv`](data/silicon_wafer_thickness.csv)
+(see [`data/README.md`](data/README.md) for provenance and units). Each column
+is one gauge; each row is one section index. The nine traces already reveal a
+shared global envelope punctuated by localized excursions:
 
 ![Thickness profiles across wafer sections](figures/01_thickness_profiles.png)
 
 *Figure 1. Overlay of the nine gauge traces. Coherent peaks and troughs across
 sensors indicate a dominant common-mode thickness fluctuation; isolated
-spikes mark spatially localized deviations.*
+spikes mark spatially localized deviations that motivate the outlier analysis
+below.*
 
 The Pearson correlation matrix confirms that nearly every gauge pair is
 positively correlated, often above $0.9$:
@@ -58,68 +57,48 @@ a lower-dimensional thickness field.*
 To prevent gauges with larger metrology variance from dominating the spectrum,
 each column is standardized to zero mean and unit sample variance:
 
-$$
-X_{ij}
-=
-\frac{(X_{\mathrm{raw}})_{ij} - \mu_j}{\sigma_j},
-\qquad
-\mu_j = \frac{1}{n}\sum_{i=1}^{n}(X_{\mathrm{raw}})_{ij},
-\qquad
-\sigma_j^{2}
-=
-\frac{1}{n-1}\sum_{i=1}^{n}\bigl((X_{\mathrm{raw}})_{ij}-\mu_j\bigr)^{2}.
-$$
+$$X_{ij} = \frac{(X_{\mathrm{raw}})_{ij} - \mu_j}{\sigma_j}, \qquad \mu_j = \frac{1}{n}\sum_{i=1}^{n}(X_{\mathrm{raw}})_{ij}, \qquad \sigma_j^{2} = \frac{1}{n-1}\sum_{i=1}^{n}\bigl((X_{\mathrm{raw}})_{ij}-\mu_j\bigr)^{2}.$$
 
 ### Covariance eigenproblem
 
 With $X \in \mathbb{R}^{n \times 9}$ the standardized data matrix, the
 unbiased sample covariance is
 
-$$
-C = \frac{1}{n-1}\, X^{\mathsf{T}} X.
-$$
+$$C = \frac{1}{n-1}\, X^{\mathsf{T}} X.$$
 
 The principal modes are the solutions of the symmetric eigenproblem
 
-$$
-C\, v_k = \lambda_k\, v_k,
-\qquad
-\lambda_1 \ge \lambda_2 \ge \cdots \ge \lambda_9 \ge 0,
-$$
+$$C\, v_k = \lambda_k\, v_k, \qquad \lambda_1 \ge \lambda_2 \ge \cdots \ge \lambda_9 \ge 0,$$
 
 where $v_k \in \mathbb{R}^{9}$ are orthonormal **loadings** and $\lambda_k$
 are the variances along those directions. The explained-variance fraction of
 component $k$ is
 
-$$
-\rho_k = \frac{\lambda_k}{\sum_{m=1}^{9} \lambda_m}.
-$$
+$$\rho_k = \frac{\lambda_k}{\sum_{m=1}^{9} \lambda_m}.$$
 
-Scores (coordinates of each wafer section in the eigenbasis) and truncated
-reconstructions follow as
+Scores and truncated reconstructions follow as
 
-$$
-T = X V_r,
-\qquad
-\hat{X} = T V_r^{\mathsf{T}} = X V_r V_r^{\mathsf{T}},
-\qquad
-V_r = [v_1\,\cdots\,v_r].
-$$
+$$T = X V_r, \qquad \hat{X} = T V_r^{\mathsf{T}} = X V_r V_r^{\mathsf{T}}, \qquad V_r = [v_1\,\cdots\,v_r].$$
+
+Equivalently, the thin SVD of the scaled matrix $X / \sqrt{n-1}$ yields the
+same loadings as right singular vectors and the same eigenvalues as squared
+singular values; the pipeline cross-checks both routes.
 
 A fuller derivation is collected in [`docs/methodology.md`](docs/methodology.md).
 
-## Eigenvalue spectrum
+## Eigenvalue spectrum and uncertainty
 
 Diagonalizing $C$ yields a steeply decaying spectrum: the first eigenvalue
 alone accounts for approximately **90.8%** of the total standardized variance;
-the first two together reach **93.7%**.
+the first two together reach **93.7%**. Row-bootstrap resampling of the wafer
+sections supplies a 95% confidence interval on each $\rho_k$.
 
 ![Scree plot of explained variance](figures/03_scree_plot.png)
 
-*Figure 3. Eigenvalue spectrum of the thickness covariance. The sharp drop
-after PC1 shows that wafer geometry is dominated by a single common-mode
-fluctuation; PC2 and higher capture progressively finer spatial structure.
-The cumulative curve crosses 90% already at the first component.*
+*Figure 3. Eigenvalue spectrum with bootstrap intervals. The sharp drop after
+PC1, and the narrow CI on $\rho_1$, show that the global thickness mode is a
+stable feature of the sample rather than an artifact of a few sections. The
+cumulative curve crosses 90% already at the first component.*
 
 ## Leading thickness modes
 
@@ -153,59 +132,101 @@ Quantitatively, the closest pair in the PC1–PC2 loading plane is **G1–G5**
 indistinguishably to the retained thickness modes and are natural candidates
 for sensor consolidation if the metrology budget must be reduced.
 
+## Spatial reading of the modes
+
+Exact gauge coordinates were not shipped with the table, so the loadings are
+mapped onto a conventional schematic $3\times 3$ grid (row-major $G_1$…$G_9$)
+for interpretation only:
+
+![Schematic wafer map of PC1 loadings](figures/07_wafer_pc1_map.png)
+
+*Figure 7. Schematic wafer disk colored by PC1 loadings. Uniform sign and
+comparable magnitude at every gauge recover the global offset mode.*
+
+![Schematic wafer map of PC2 loadings](figures/08_wafer_pc2_map.png)
+
+*Figure 8. Same layout colored by PC2. The east-side gauge $G_6$ dominates
+the contrast, while $G_1$–$G_5$ oppose it — a spatial gradient / bow pattern
+rather than another global offset.*
+
+## Outliers and robustness
+
+Several sections in Figure 1 reach deviations of order $7$–$8$ while typical
+values sit near $0.2$. A Mahalanobis gate on the standardized rows flags these
+heavy tails; median/MAD scaling and a filtered re-fit test whether the
+spectrum depends on them.
+
+![Scores with Mahalanobis outliers](figures/09_scores_with_outliers.png)
+
+*Figure 9. Outlying sections (crosses) lie far along the PC1 axis — extreme
+global thickness offsets rather than a separate geometric family.*
+
+![Spectrum comparison under robust preprocessing](figures/10_outlier_spectrum_comparison.png)
+
+*Figure 10. Explained-variance ratios under classical z-scores, median/MAD
+scaling, and Mahalanobis filtering. PC1 remains overwhelmingly dominant in
+all three treatments, so the one-to-two-mode picture is not an artifact of
+the spikes.*
+
 ## Reconstruction fidelity
 
 Truncating the expansion to $r$ components and measuring the
 root-mean-square error of $\hat{X}$ against $X$ confirms that two modes
 already recover the standardized thickness field to an RMSE of about $0.25$:
 
-![Reconstruction RMSE versus number of components](figures/07_reconstruction_rmse.png)
+![Reconstruction RMSE versus number of components](figures/11_reconstruction_rmse.png)
 
-*Figure 7. Reconstruction error versus model order. The steep initial drop
+*Figure 11. Reconstruction error versus model order. The steep initial drop
 mirrors the scree plot: once the global offset (PC1) and the leading spatial
 contrast (PC2) are kept, additional components buy only marginal fidelity.*
 
 ## Repository layout
 
 ```
-data/                  silicon wafer thickness table
-src/wafer_pca/         reusable analysis package
-  data.py              loading and z-score standardization
-  pca.py               covariance eigendecomposition PCA
-  exploration.py       correlation and reconstruction diagnostics
-  plotting.py          figure generation for the workflow above
-scripts/run_analysis.py  end-to-end pipeline → figures/
-docs/methodology.md    extended mathematical notes
-tests/                 invariants of standardization and PCA
-figures/               plots embedded in this README
+data/                     thickness table + provenance note
+src/wafer_pca/            reusable analysis package
+  data.py                 loading, z-score / MAD scaling, outlier mask
+  pca.py                  covariance PCA, SVD cross-check, bootstrap CIs
+  exploration.py          correlation and reconstruction diagnostics
+  plotting.py             figure generation for the workflow above
+  __main__.py             CLI: python -m wafer_pca
+scripts/run_analysis.py   convenience wrapper → figures/
+docs/methodology.md       extended mathematical notes
+tests/                    invariants of standardization, PCA, SVD
+figures/                  plots embedded in this README
 ```
 
 ## Running the analysis
 
 ```bash
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+pip install -e .
 
-PYTHONPATH=src python scripts/run_analysis.py
-PYTHONPATH=src python -m pytest
+python3 -m wafer_pca --figures figures
+python3 -m pytest
 ```
 
-The pipeline regenerates every figure under `figures/` and writes a numerical
-summary to `figures/analysis_summary.json`.
+Options: `--data PATH`, `--bootstrap N`, `--seed INT`. The pipeline
+regenerates every figure under `figures/` and writes
+`figures/analysis_summary.json`.
 
 ## Key quantitative results
 
 | Quantity | Value |
 | --- | --- |
 | Sections $\times$ gauges | $184 \times 9$ |
-| Variance in PC1 | $90.8\%$ |
+| Variance in PC1 | $90.8\%$ (bootstrap 95% CI $[77.7\%,\, 95.7\%]$) |
 | Variance in PC1 + PC2 | $93.7\%$ |
+| Mahalanobis outliers | $14$ of $184$ sections |
 | Closest gauges (loading plane) | G1–G5 |
 | RMSE with $r = 2$ components | $0.25$ (standardized units) |
+| Covariance PCA vs SVD | eigenvalues agree |
 
 In short: silicon wafer thickness, as seen by nine correlated gauges, is
 essentially a **one-to-two-mode geometric field**. The first principal
 component is a global offset shared by every sensor; the second encodes the
-leading spatial gradient. Higher components refine the reconstruction but do
-not change the physical picture.
+leading spatial gradient, dominated by $G_6$ on the schematic wafer map.
+Higher components refine the reconstruction but do not change the physical
+picture, and the spectrum survives outlier-resistant reprocessing.
