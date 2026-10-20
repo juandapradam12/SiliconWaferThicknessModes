@@ -14,12 +14,7 @@ def correlation_matrix(frame: pd.DataFrame) -> pd.DataFrame:
 
 
 def pairwise_sensor_distance(loadings: np.ndarray, k: int = 2) -> pd.DataFrame:
-    """Euclidean distance between sensors in the first ``k`` loading axes.
-
-    Sensors that land close together share similar contributions to the
-    retained principal modes and are therefore candidates for physically
-    coupled thickness variation.
-    """
+    """Euclidean distance between sensors in the first ``k`` loading axes."""
     coords = loadings[:, :k]
     n = coords.shape[0]
     labels = [f"G{i}" for i in range(1, n + 1)]
@@ -49,3 +44,12 @@ def reconstruction_error(
     scores = X @ V
     X_hat = scores @ V.T
     return float(np.sqrt(np.mean((X - X_hat) ** 2)))
+
+
+def align_loading_sign(reference: np.ndarray, candidate: np.ndarray) -> np.ndarray:
+    """Flip each column of ``candidate`` to match the sign of ``reference``."""
+    aligned = candidate.copy()
+    for k in range(min(reference.shape[1], aligned.shape[1])):
+        if np.dot(reference[:, k], aligned[:, k]) < 0:
+            aligned[:, k] *= -1
+    return aligned

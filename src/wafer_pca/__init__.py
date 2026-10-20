@@ -1,7 +1,13 @@
 """Principal component analysis of silicon wafer thickness measurements."""
 
-from wafer_pca.data import load_thickness, standardize
-from wafer_pca.pca import PrincipalComponentAnalysis
+from wafer_pca.data import load_thickness, robust_standardize, standardize
+from wafer_pca.pca import PrincipalComponentAnalysis, bootstrap_variance_ratios
 
-__all__ = ["load_thickness", "standardize", "PrincipalComponentAnalysis"]
-__version__ = "1.0.0"
+__all__ = [
+    "load_thickness",
+    "standardize",
+    "robust_standardize",
+    "PrincipalComponentAnalysis",
+    "bootstrap_variance_ratios",
+]
+__version__ = "1.1.0"
