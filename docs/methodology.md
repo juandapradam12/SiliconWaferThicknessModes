@@ -16,13 +16,13 @@ The analysis below isolates the dominant spatial modes of that field.
 
 ## Standardization
 
-Each gauge is mapped to a common scale by the sample $z$-score
+Each gauge is mapped to a common scale by the sample z-score
 
 $$X_{ij} = \frac{(X_{\mathrm{raw}})_{ij} - \mu_j}{\sigma_j}, \qquad \mu_j = \frac{1}{n}\sum_{i=1}^{n}(X_{\mathrm{raw}})_{ij}, \qquad \sigma_j = \sqrt{\frac{1}{n-1}\sum_{i=1}^{n}\bigl((X_{\mathrm{raw}})_{ij}-\mu_j\bigr)^{2}}.$$
 
 Without this step, gauges with larger metrology variance would dominate the
 covariance spectrum irrespective of their physical coupling. A parallel
-**median / MAD** scaling and a Mahalanobis gate on the $z$-scored rows are
+**median / MAD** scaling and a Mahalanobis gate on the z-scored rows are
 used to test sensitivity to heavy-tailed thickness spikes.
 
 PCA on the *centered but unscaled* matrix (raw covariance) is retained as a
@@ -91,7 +91,7 @@ turns the loading geometry into a metrology-design statement.
 
 ## Cross-validation
 
-A $K$-fold split over sections fits PCA on the training rows and reconstructs
+A K-fold split over sections fits PCA on the training rows and reconstructs
 held-out rows in the training loading basis. Agreement between in-sample and
 CV RMSE indicates that the truncated eigen-expansion generalizes.
 
@@ -108,7 +108,7 @@ two-component PCA supports reading PC1/PC2 as offset and gradient modes.
 
 Independently permuting each gauge column destroys cross-gauge correlation.
 The fraction of permuted $\rho_1$ values at least as large as the observed
-$\rho_1$ is a one-sided $p$-value for a dominant common mode.
+$\rho_1$ is a one-sided p-value for a dominant common mode.
 
 Because a large $\rho_1$ mechanically deflates $\rho_2$, PC2 is tested
 instead by the spatial $R^{2}$ of its loadings against schematic $(x,y)$,
