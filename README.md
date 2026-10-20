@@ -10,15 +10,26 @@ eigenmodes are the dominant spatial patterns of thickness variation, and the
 associated eigenvalues quantify how much of the metrology signal each pattern
 carries.
 
+## What a gauge is
+
+In this setting a **gauge** (columns `G1`…`G9`) is a thickness metrology
+sensor — or a small group of co-located probes — that reports how far the
+local wafer thickness sits from the manufacturing target. A reading of $0$
+means on-spec; positive / negative values mean locally thick / thin. The nine
+gauges are not nine different physical quantities: they are nine spatial
+samples of one continuous thickness field on the wafer. That shared field is
+why their signals move together, and why a handful of principal modes can
+replace the full nine-dimensional vector.
+
 ## Physical problem
 
 A wafer section is described by the nine-dimensional observation
 
 $$\mathbf{x}_i = \bigl(G_1^{(i)},\, G_2^{(i)},\, \ldots,\, G_9^{(i)}\bigr)^{\mathsf{T}}, \qquad i = 1,\ldots,n,$$
 
-where each $G_j$ is a thickness deviation from the manufacturing target at
-gauge group $j$, and $n = 184$ sections are available. Manufacturing control
-asks two related questions:
+where each $G_j$ is the thickness deviation recorded by gauge $j$, and
+$n = 184$ sections are available. Manufacturing control asks two related
+questions:
 
 1. How many independent geometric modes are actually present in the thickness
    field?

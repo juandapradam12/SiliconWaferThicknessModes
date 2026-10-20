@@ -11,7 +11,7 @@ data matrix
 $$X_{\mathrm{raw}} \in \mathbb{R}^{n \times 9}, \qquad (X_{\mathrm{raw}})_{ij} = \text{thickness deviation at gauge } G_j.$$
 
 Because the gauges sample overlapping regions of the same continuum
-thickness field, the columns of $X_{\mathrm{raw}}$ are strongly correlated.
+thickness field, the columns of the raw matrix are strongly correlated.
 The analysis below isolates the dominant spatial modes of that field.
 
 ## Standardization
@@ -49,8 +49,11 @@ $$\rho_k = \frac{\lambda_k}{\sum_{m=1}^{9}\lambda_m}.$$
 ### SVD equivalence
 
 Write $\tilde{X} = X / \sqrt{n-1}$ and compute the thin SVD
-$\tilde{X} = U\Sigma V^{\mathsf{T}}$. Then the columns of $V$ coincide with
-the eigenvectors of $C$, and $\lambda_k = \Sigma_{kk}^{2}$.
+
+$$\tilde{X} = U\Sigma V^{\mathsf{T}}.$$
+
+Then the columns of $V$ coincide with the eigenvectors of $C$, and
+$\lambda_k = \Sigma_{kk}^{2}$.
 
 ### Bootstrap uncertainty
 
@@ -74,13 +77,20 @@ Projecting onto the leading $r$ eigenvectors gives
 
 $$T = X V_r, \qquad \hat{X} = T V_r^{\mathsf{T}} = X V_r V_r^{\mathsf{T}}.$$
 
-The first score column $T_{\cdot 1}$ is monitored as a Shewhart series with
-center line $\bar{T}_{\cdot 1}$ and control limits
-$\bar{T}_{\cdot 1} \pm 3\, s_{T_{\cdot 1}}$, providing a single global
-thickness statistic for process control.
+Let $t_1$ denote the first column of $T$ (the PC1 scores). That series is
+monitored as a Shewhart chart with center line and $\pm 3\sigma$ control
+limits
 
-The RMSE $\|X - \hat{X}\|_{\mathrm{F}} / \sqrt{np}$ quantifies how many
-eigenmodes are needed to recover the thickness field to a chosen tolerance.
+$$\mathrm{CL} = \bar{t}_1, \qquad \mathrm{UCL}/\mathrm{LCL} = \bar{t}_1 \pm 3\, s_{t_1},$$
+
+providing a single global thickness statistic for process control.
+
+The reconstruction error
+
+$$\mathrm{RMSE} = \|X - \hat{X}\|_{\mathrm{F}} / \sqrt{np}$$
+
+quantifies how many eigenmodes are needed to recover the thickness field to
+a chosen tolerance.
 
 ## Sensor pruning
 
