@@ -19,8 +19,14 @@ from wafer_pca.data import (
 from wafer_pca.diagnostics import (
     bootstrap_loadings,
     covariance_vs_correlation_spectra,
+    cross_validated_rmse,
+    fit_physical_plane,
     marchenko_pastur_edges,
+    mean_abs_residual_by_gauge,
     n_signal_components,
+    permutation_null_variance_ratios,
+    permutation_pvalue,
+    permutation_spatial_r2_null,
     reconstruct_with_r,
     sensor_pruning_study,
     spc_limits,
@@ -34,13 +40,18 @@ from wafer_pca.pca import PrincipalComponentAnalysis, bootstrap_variance_ratios
 from wafer_pca.plotting import (
     plot_correlation_heatmap,
     plot_cov_vs_corr_spectra,
+    plot_cv_rmse,
     plot_loading_bars,
     plot_loading_intervals,
     plot_outlier_comparison,
     plot_pc1_spc,
+    plot_permutation_null,
+    plot_physical_vs_pca_rmse,
+    plot_spatial_r2_null,
     plot_pruning_comparison,
     plot_reconstruction_curve,
     plot_reconstruction_panels,
+    plot_residual_wafer_map,
     plot_score_scatter,
     plot_score_scatter_outliers,
     plot_scree_with_mp,
@@ -139,6 +150,30 @@ def run(data: Path | None, figures: Path, bootstrap: int, seed: int) -> dict:
     limits = spc_limits(scores[:, 0], k=3.0)
     n_outside = int(np.sum((scores[:, 0] < limits[0]) | (scores[:, 0] > limits[2])))
 
+    resid_by_gauge = mean_abs_residual_by_gauge(X, classical, 2)
+    in_sample_rmse = np.array(
+        [reconstruction_error(X, classical, r) for r in range(1, 10)]
+    )
+    cv_rmse = cross_validated_rmse(X, max_components=9, n_folds=5, random_state=seed)
+    _, _, rmse_physical = fit_physical_plane(X, gauge_names)
+    rmse_pca = {
+        1: reconstruction_error(X, classical, 1),
+        2: rmse_2,
+        3: reconstruction_error(X, classical, 3),
+    }
+    null_ratios = permutation_null_variance_ratios(
+        X, n_permutations=max(bootstrap, 200), random_state=seed
+    )
+    p_pc1 = permutation_pvalue(
+        float(classical.explained_variance_ratio[0]), null_ratios, component=0
+    )
+    pc2_spatial_r2, pc2_spatial_null, p_pc2_spatial = permutation_spatial_r2_null(
+        classical.loadings()[:, 1],
+        gauge_names,
+        n_permutations=max(bootstrap, 200),
+        random_state=seed,
+    )
+
     plot_thickness_profiles(frame, figures / "01_thickness_profiles.png")
     plot_correlation_heatmap(corr, figures / "02_correlation_heatmap.png")
     plot_cov_vs_corr_spectra(
@@ -178,6 +213,20 @@ def run(data: Path | None, figures: Path, bootstrap: int, seed: int) -> dict:
     )
     plot_reconstruction_curve(
         X, classical, figures / "17_reconstruction_rmse.png"
+    )
+    plot_residual_wafer_map(resid_by_gauge, figures / "18_residual_wafer_map.png")
+    plot_cv_rmse(in_sample_rmse, cv_rmse, figures / "19_cv_rmse.png")
+    plot_physical_vs_pca_rmse(
+        rmse_physical, rmse_pca, figures / "20_physical_vs_pca.png"
+    )
+    plot_permutation_null(
+        float(classical.explained_variance_ratio[0]),
+        null_ratios,
+        0,
+        figures / "21_pc1_permutation_null.png",
+    )
+    plot_spatial_r2_null(
+        pc2_spatial_r2, pc2_spatial_null, figures / "22_pc2_spatial_permutation.png"
     )
 
     summary = {
@@ -225,6 +274,13 @@ def run(data: Path | None, figures: Path, bootstrap: int, seed: int) -> dict:
             for r in pruning
         ],
         "reconstruction_panel_sections": section_ids,
+        "mean_abs_residual_by_gauge": resid_by_gauge.tolist(),
+        "cv_rmse": cv_rmse.tolist(),
+        "in_sample_rmse": in_sample_rmse.tolist(),
+        "physical_plane_rmse": rmse_physical,
+        "pc1_permutation_pvalue": p_pc1,
+        "pc2_spatial_r2": pc2_spatial_r2,
+        "pc2_spatial_permutation_pvalue": p_pc2_spatial,
         "pc1_pc2_variance": float(classical.cumulative_variance_ratio[1]),
         "closest_sensors_in_loading_plane": {
             "pair": [g_a, g_b],
@@ -256,6 +312,12 @@ def run(data: Path | None, figures: Path, bootstrap: int, seed: int) -> dict:
     )
     print(f"  SVD ↔ covariance match : {summary['svd_matches_covariance']}")
     print(f"  RMSE with 2 PCs        : {rmse_2:.4f}")
+    print(f"  CV RMSE (2 PCs)        : {cv_rmse[1]:.4f}")
+    print(f"  Physical plane RMSE    : {rmse_physical:.4f}")
+    print(f"  PC1 permutation p-value: {p_pc1:.4f}")
+    print(
+        f"  PC2 spatial R² / p     : {pc2_spatial_r2:.3f} / {p_pc2_spatial:.4f}"
+    )
     print(f"  figures written to     : {figures.resolve()}")
     print(f"  summary JSON           : {out.resolve()}")
     return summary

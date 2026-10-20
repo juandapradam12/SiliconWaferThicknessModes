@@ -13,4 +13,4 @@ __all__ = [
     "marchenko_pastur_edges",
     "sensor_pruning_study",
 ]
-__version__ = "1.2.0"
+__version__ = "1.3.0"

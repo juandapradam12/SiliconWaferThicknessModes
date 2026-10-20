@@ -89,6 +89,31 @@ removal. Re-fitting PCA after dropping $G_5$ (redundant with $G_1$), $G_6$
 (PC2 driver), or both, compares $\rho_1$ and the two-component RMSE and
 turns the loading geometry into a metrology-design statement.
 
+## Cross-validation
+
+A $K$-fold split over sections fits PCA on the training rows and reconstructs
+held-out rows in the training loading basis. Agreement between in-sample and
+CV RMSE indicates that the truncated eigen-expansion generalizes.
+
+## Physical plane model
+
+On the schematic gauge coordinates $(x_j, y_j)$, each section is fit by
+
+$$x_{ij} \approx a_i + b_i x_j + c_i y_j,$$
+
+i.e. a global offset plus a linear tilt. Proximity of this model's RMSE to
+two-component PCA supports reading PC1/PC2 as offset and gradient modes.
+
+## Permutation tests
+
+Independently permuting each gauge column destroys cross-gauge correlation.
+The fraction of permuted $\rho_1$ values at least as large as the observed
+$\rho_1$ is a one-sided $p$-value for a dominant common mode.
+
+Because a large $\rho_1$ mechanically deflates $\rho_2$, PC2 is tested
+instead by the spatial $R^{2}$ of its loadings against schematic $(x,y)$,
+with gauge labels permuted under the null.
+
 ## Interpretation on the wafer
 
 - **PC1** aggregates gauges with like-signed loadings and captures a

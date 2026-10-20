@@ -591,3 +591,131 @@ def plot_cov_vs_corr_spectra(
     ax.legend(frameon=False, fontsize=8)
     _style_axes(ax)
     return _save(fig, path)
+
+
+def plot_residual_wafer_map(mean_abs_resid: np.ndarray, path: Path) -> Path:
+    """Schematic wafer map of mean |residual| after a 2-PC reconstruction."""
+    from wafer_pca.data import SCHEMATIC_GAUGE_XY
+
+    labels = [f"G{i}" for i in range(1, len(mean_abs_resid) + 1)]
+    vmax = float(np.max(mean_abs_resid)) or 1.0
+
+    fig, ax = plt.subplots(figsize=(5.8, 5.8))
+    fig.patch.set_facecolor(PALETTE["bg"])
+    wafer = plt.Circle((0, 0), 1.0, fill=False, color=PALETTE["slate"], lw=1.6)
+    ax.add_patch(wafer)
+    ax.set_aspect("equal")
+    ax.set_xlim(-1.25, 1.25)
+    ax.set_ylim(-1.25, 1.25)
+
+    for label, r in zip(labels, mean_abs_resid):
+        x, y = SCHEMATIC_GAUGE_XY[label]
+        t = r / vmax
+        color = SENSOR_CMAP(0.5 + 0.5 * t)
+        ax.scatter(
+            x, y, s=520, c=[color], edgecolors=PALETTE["ink"], linewidths=0.8, zorder=3
+        )
+        ax.text(
+            x,
+            y,
+            f"{label}\n{r:.2f}",
+            ha="center",
+            va="center",
+            fontsize=8,
+            color=PALETTE["ink"],
+            zorder=4,
+        )
+
+    ax.set_xticks([])
+    ax.set_yticks([])
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+    ax.set_title("Mean |residual| per gauge after 2-PC reconstruction")
+    ax.set_facecolor(PALETTE["bg"])
+    return _save(fig, path)
+
+
+def plot_cv_rmse(
+    in_sample: np.ndarray, cv_rmse: np.ndarray, path: Path
+) -> Path:
+    """In-sample versus cross-validated reconstruction RMSE."""
+    ks = np.arange(1, len(in_sample) + 1)
+    fig, ax = plt.subplots(figsize=(7.5, 4.2))
+    fig.patch.set_facecolor(PALETTE["bg"])
+    ax.plot(ks, in_sample, color=PALETTE["cyan"], marker="o", lw=1.8, label="In-sample")
+    ax.plot(ks, cv_rmse, color=PALETTE["amber"], marker="s", lw=1.8, label="5-fold CV")
+    ax.set_xlabel("Number of retained components")
+    ax.set_ylabel("Reconstruction RMSE (standardized units)")
+    ax.set_title("In-sample vs out-of-sample reconstruction error")
+    ax.set_xticks(ks)
+    ax.legend(frameon=False, fontsize=8)
+    _style_axes(ax)
+    return _save(fig, path)
+
+
+def plot_physical_vs_pca_rmse(
+    rmse_physical: float,
+    rmse_pca: dict[int, float],
+    path: Path,
+) -> Path:
+    """Bar comparison of physical plane model vs PCA reconstructions."""
+    labels = ["Physical\n(offset+tilt)"] + [f"PCA\nr={k}" for k in sorted(rmse_pca)]
+    values = [rmse_physical] + [rmse_pca[k] for k in sorted(rmse_pca)]
+    colors = [PALETTE["amber"]] + [PALETTE["steel"]] * len(rmse_pca)
+    x = np.arange(len(labels))
+
+    fig, ax = plt.subplots(figsize=(7.2, 4.2))
+    fig.patch.set_facecolor(PALETTE["bg"])
+    ax.bar(x, values, color=colors, width=0.6)
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels)
+    ax.set_ylabel("Reconstruction RMSE (standardized units)")
+    ax.set_title("Physical plane model versus PCA reconstructions")
+    _style_axes(ax)
+    return _save(fig, path)
+
+
+def plot_permutation_null(
+    observed_ratio: float,
+    null_ratios: np.ndarray,
+    component: int,
+    path: Path,
+) -> Path:
+    """Histogram of permuted ρ_k against the observed value."""
+    null_k = null_ratios[:, component]
+    fig, ax = plt.subplots(figsize=(7.5, 4.2))
+    fig.patch.set_facecolor(PALETTE["bg"])
+    ax.hist(null_k, bins=30, color=PALETTE["steel"], alpha=0.85, edgecolor="white")
+    ax.axvline(
+        observed_ratio,
+        color=PALETTE["amber"],
+        lw=2.0,
+        label=f"Observed ρ_{component + 1} = {observed_ratio:.3f}",
+    )
+    ax.set_xlabel(f"Explained-variance fraction ρ_{component + 1}")
+    ax.set_ylabel("Permutation count")
+    ax.set_title(f"Permutation null for PC{component + 1} variance fraction")
+    ax.legend(frameon=False, fontsize=8)
+    _style_axes(ax)
+    return _save(fig, path)
+
+
+def plot_spatial_r2_null(
+    observed_r2: float, null_r2: np.ndarray, path: Path
+) -> Path:
+    """Histogram of permuted spatial R² for a loading vector."""
+    fig, ax = plt.subplots(figsize=(7.5, 4.2))
+    fig.patch.set_facecolor(PALETTE["bg"])
+    ax.hist(null_r2, bins=30, color=PALETTE["steel"], alpha=0.85, edgecolor="white")
+    ax.axvline(
+        observed_r2,
+        color=PALETTE["amber"],
+        lw=2.0,
+        label=f"Observed R² = {observed_r2:.3f}",
+    )
+    ax.set_xlabel("Spatial R² of loadings on schematic (x, y)")
+    ax.set_ylabel("Permutation count")
+    ax.set_title("Gauge-label permutation null for PC2 spatial structure")
+    ax.legend(frameon=False, fontsize=8)
+    _style_axes(ax)
+    return _save(fig, path)

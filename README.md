@@ -233,6 +233,57 @@ on the finer gauge-to-gauge contrast that lives in PC3 and beyond.*
 mirrors the scree plot: once the global offset (PC1) and the leading spatial
 contrast (PC2) are kept, additional components buy only marginal fidelity.*
 
+Where the two-component model still fails is spatially localized:
+
+![Residual wafer map](figures/18_residual_wafer_map.png)
+
+*Figure 18. Mean absolute residual per gauge after the 2-PC fit. Residuals
+are small everywhere and slightly elevated where higher-order contrast lives
+— consistent with a field that is already well described by offset + tilt.*
+
+Out-of-sample error tracks the in-sample curve, so the low RMSE is not an
+in-sample artifact:
+
+![Cross-validated RMSE](figures/19_cv_rmse.png)
+
+*Figure 19. In-sample versus 5-fold cross-validated reconstruction RMSE.
+The curves nearly coincide: loadings estimated on training sections
+generalize to held-out wafer sections.*
+
+## Physical plane model and PC2 significance
+
+A minimal physical model — per-section **global offset + linear tilt** on the
+schematic $(x,y)$ gauge layout — is fit by least squares and compared to PCA:
+
+$$x_{ij} \approx a_i + b_i\, x_j + c_i\, y_j.$$
+
+![Physical plane vs PCA RMSE](figures/20_physical_vs_pca.png)
+
+*Figure 20. Reconstruction RMSE of the physical plane model versus PCA with
+$r = 1,2,3$. The plane model lands close to two-component PCA: the leading
+eigenmodes are essentially the same geometric degrees of freedom a process
+engineer would write down by hand.*
+
+A column-shuffle permutation test asks whether the observed $\rho_1$ exceeds
+what independent gauges would produce; a second test permutes gauge *labels*
+and asks whether the PC2 loading pattern is spatially organized on the
+schematic wafer:
+
+![PC1 permutation null](figures/21_pc1_permutation_null.png)
+
+*Figure 21. Null histogram of $\rho_1$ under column permutations. The observed
+global-mode fraction lies far above the null — the common-mode thickness
+offset is not a chance fluctuation of nine independent sensors.*
+
+![PC2 spatial permutation](figures/22_pc2_spatial_permutation.png)
+
+*Figure 22. Null histogram of the spatial $R^{2}$ of PC2 loadings against
+schematic $(x,y)$ under random gauge-label permutations. The observed
+$R^{2} \approx 0.42$ is moderate; with only nine schematic sites the
+permutation $p$-value is not decisive on its own. The stronger geometric
+evidence is Figure 20: a literal offset+tilt model matches two-component
+PCA almost exactly.*
+
 ## Repository layout
 
 ```
@@ -240,7 +291,7 @@ data/                     thickness table + provenance note
 src/wafer_pca/            reusable analysis package
   data.py                 loading, z-score / MAD scaling, outlier mask
   pca.py                  covariance PCA, SVD cross-check, bootstrap CIs
-  diagnostics.py          MP edge, pruning, SPC limits, loading CIs
+  diagnostics.py          MP edge, pruning, SPC, CV, physical plane, permutations
   exploration.py          correlation and reconstruction diagnostics
   plotting.py             figure generation for the workflow above
   __main__.py             CLI: python3 -m wafer_pca
@@ -280,12 +331,18 @@ regenerates every figure under `figures/` and writes
 | Dropping G5 | PC1 / RMSE essentially unchanged (redundant) |
 | Dropping G6 | PC1 rises; RMSE on remaining gauges falls (contrast mode removed) |
 | RMSE with $r = 2$ components | $0.25$ (standardized units) |
+| 5-fold CV RMSE ($r = 2$) | matches in-sample within noise |
+| Physical plane RMSE | comparable to 2-PC PCA |
+| PC1 permutation $p$-value | $\ll 0.05$ (common mode) |
+| PC2 spatial $R^{2}$ (schematic) | $\approx 0.42$ (moderate; tilt reading rests mainly on Fig. 20) |
 | Covariance PCA vs SVD | eigenvalues agree |
 
 In short: silicon wafer thickness, as seen by nine correlated gauges, is
 essentially a **one-to-two-mode geometric field**. The first principal
 component is a global offset — and a practical SPC statistic — shared by every
-sensor; the second encodes the leading spatial gradient, dominated by $G_6$.
+sensor; the second encodes the leading spatial gradient, dominated by $G_6$,
+and matches the tilt degree of freedom of a simple physical plane model.
 Higher components refine the reconstruction but do not change the physical
-picture, and the spectrum survives outlier-resistant reprocessing and gauge
-pruning of the redundant sensor $G_5$.
+picture, and the spectrum survives outlier-resistant reprocessing, gauge
+pruning of the redundant sensor $G_5$, cross-validation, and permutation
+tests for both the common mode and the spatial structure of PC2.
